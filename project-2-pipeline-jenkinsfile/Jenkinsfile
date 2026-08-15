@@ -1,75 +1,132 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    PROJECT_DIR = "project-2-pipeline-jenkinsfile"
-    PM2_APP_NAME = "project-2-app"
-    EMAIL_TO = "venkatesangunaraj@gmail.com"
-  }
-
-  stages {
-    stage('Preparation') {
-      steps {
-        sh '''
-          echo "Build started!"
-          echo "Branch: ${GIT_BRANCH}"
-          echo "Build Number: ${BUILD_NUMBER}"
-          ls -la
-        '''
-      }
+    environment {
+        PROJECT_DIR = "project-2-pipeline-jenkinsfile"
+        PM2_APP_NAME = "project-2-app"
+        EMAIL_TO = "venkatesangunaraj@gmail.com"
+        PM2_PATH = "C:\\Users\\SCLPT 093\\AppData\\Roaming\\npm"
     }
 
-    stage('Install Dependencies') {
-      steps {
-        dir("${PROJECT_DIR}") {
-          sh 'npm install'
+    stages {
+
+        stage('Preparation') {
+            steps {
+                bat '''
+                    echo "===== BUILD STARTED ====="
+                    echo "Current user:"
+                    whoami
+
+                    echo "Node version:"
+                    node --version
+
+                    echo "NPM version:"
+                    npm --version
+
+                    echo "PM2 location:"
+                    set "PATH=%PATH%;%PM2_PATH%"
+                    where pm2
+
+                    echo "PM2 version:"
+                    call pm2 --version
+
+                    echo "Branch: %GIT_BRANCH%"
+                    echo "Build Number: %BUILD_NUMBER%"
+
+                    echo "Workspace:"
+                    dir
+                '''
+            }
         }
-      }
-    }
 
-    stage('Run Tests') {
-      steps {
-        dir("${PROJECT_DIR}") {
-          sh 'npm test'
+        stage('Install Dependencies') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    bat '''
+                        echo "===== INSTALLING DEPENDENCIES ====="
+                        call npm install
+
+                        if %ERRORLEVEL% NEQ 0 (
+                            echo "npm install failed."
+                            exit /b 1
+                        )
+                    '''
+                }
+            }
         }
-      }
-    }
 
-    stage('Deploy with PM2') {
-      when {
-        expression { currentBuild.currentResult == 'SUCCESS' }
-      }
-      steps {
-        dir("${PROJECT_DIR}") {
-          sh '''
-            export PATH=$PATH:/usr/local/bin
-            echo "Deploying app using PM2..."
+        stage('Run Tests') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    bat '''
+                        echo "===== RUNNING TESTS ====="
+                        call npm test
 
-            if pm2 list | grep -q "${PM2_APP_NAME}"; then
-              echo "App exists -> Restarting..."
-              pm2 restart "${PM2_APP_NAME}"
-            else
-              echo "App not found -> Starting..."
-              pm2 start index.js --name "${PM2_APP_NAME}"
-            fi
+                        if %ERRORLEVEL% NEQ 0 (
+                            echo "Tests failed. Deployment stopped."
+                            exit /b 1
+                        )
 
-            pm2 save
-          '''
+                        echo "===== TESTS PASSED ====="
+                    '''
+                }
+            }
         }
-      }
-    }
-  }
 
-  post {
-    always {
-      script {
-        def buildStatus = currentBuild.currentResult ?: 'UNKNOWN'
-        mail(
-          to: "${EMAIL_TO}",
-          subject: "Jenkins Build ${buildStatus}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-          body: """Build Notification\n\nJob: ${env.JOB_NAME}\nBuild: #${env.BUILD_NUMBER}\nBranch: ${env.GIT_BRANCH}\nStatus: ${buildStatus}\nURL: ${env.BUILD_URL}"""
-        )
-      }
+        stage('Deploy with PM2') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    bat '''
+                        echo "===== DEPLOYING WITH PM2 ====="
+
+                        set "PATH=%PATH%;%PM2_PATH%"
+
+                        echo "Checking PM2..."
+                        call pm2 --version
+
+                        echo "Checking application..."
+
+                        call pm2 describe %PM2_APP_NAME% >nul 2>&1
+
+                        if %ERRORLEVEL% EQU 0 (
+                            echo "Application exists - restarting..."
+                            call pm2 restart %PM2_APP_NAME%
+                        ) else (
+                            echo "Application does not exist - starting..."
+                            call pm2 start index.js --name %PM2_APP_NAME%
+                        )
+
+                        echo "===== PM2 STATUS ====="
+                        call pm2 list
+
+                        echo "===== SAVING PM2 PROCESS ====="
+                        call pm2 save
+
+                        echo "===== DEPLOYMENT COMPLETED ====="
+                    '''
+                }
+            }
+        }
     }
-  }
+
+    post {
+        always {
+            script {
+                def buildStatus = currentBuild.currentResult ?: 'UNKNOWN'
+
+                mail(
+                    to: "${EMAIL_TO}",
+                    subject: "Jenkins Build ${buildStatus}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """Build Notification
+
+Job: ${env.JOB_NAME}
+Build: #${env.BUILD_NUMBER}
+Branch: ${env.GIT_BRANCH}
+Status: ${buildStatus}
+URL: ${env.BUILD_URL}
+"""
+                )
+            }
+        }
+    }
 }
