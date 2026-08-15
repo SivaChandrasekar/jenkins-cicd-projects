@@ -1,0 +1,37 @@
+===== BUILD STARTED =====
+Current user:
+nt authority\system
+
+===== SETTING PM2 PATH =====
+
+PM2 location:
+C:\Users\SCLPT 093\AppData\Roaming\npm\pm2.cmd
+
+PM2 version:
+6.x.x
+
+===== INSTALLING DEPENDENCIES =====
+
+up to date, audited 66 packages...
+
+===== RUNNING TESTS =====
+
+✔ GET /health returns service health payload
+ℹ tests 1
+ℹ pass 1
+
+===== TESTS PASSED =====
+
+===== DEPLOYING WITH PM2 =====
+Project1API does not exist - starting application...
+
+[PM2] Starting ...
+[PM2] Done.
+
+===== PM2 STATUS =====
+
+Project1API    online
+
+===== BUILD COMPLETED =====
+
+Finished: SUCCESS
