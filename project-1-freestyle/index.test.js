@@ -37,7 +37,7 @@ test("GET /health returns service health payload", async () => {
     assert.deepEqual(payload, {
       status: "ok",
       project: "project-1-freestyle",
-      message: "Service is healthy",
+      message: "Service is healthy and active",
     });
   } finally {
     server.close();
